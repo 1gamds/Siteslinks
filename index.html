@@ -13,9 +13,19 @@
   --accent:#ff4d2e; --accent-ink:#ffffff; --danger:#c62828; --ok:#1b8a4b;
   --radius:18px;
 }
-@media (prefers-color-scheme:dark){
-  :root{--bg:#10131c; --surface:#1a1f2d; --ink:#f1f3f9; --muted:#9aa3b8; --line:#2c3347; --accent:#ff6a4d; --accent-ink:#17110f}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #ffffff;         /* Fundo da página principal (Branco) */
+    --surface: #f4f6fa;    /* Fundo de cartões/elementos secundários */
+    --ink: #10131c;        /* Cor principal do texto (Escuro) */
+    --muted: #5e6678;      /* Texto secundário/suave */
+    --line: #e2e8f0;       /* Cor das bordas e divisores */
+    --accent: #ff6a4d;     /* Cor de destaque/botões */
+    --accent-ink: #ffffff; /* Cor do texto sobre o botão de destaque */
+  }
 }
+  
+  
 *{box-sizing:border-box}
 html,body{margin:0}
 body{
