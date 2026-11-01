@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Achados e Ofertas</title>
+<meta name="description" content="Produtos selecionados com os melhores links de oferta.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eceef3; --surface:#ffffff; --ink:#141a2b; --muted:#5d6579; --line:#d9dce5;
+  --accent:#ff4d2e; --accent-ink:#ffffff; --danger:#c62828; --ok:#1b8a4b;
+  --radius:18px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#10131c; --surface:#1a1f2d; --ink:#f1f3f9; --muted:#9aa3b8; --line:#2c3347; --accent:#ff6a4d; --accent-ink:#17110f}
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  background:var(--bg); color:var(--ink); min-height:100vh;
+  padding:max(20px,env(safe-area-inset-top)) 16px max(40px,env(safe-area-inset-bottom));
+  -webkit-font-smoothing:antialiased;
+}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:560px;margin:0 auto}
+
+/* Botão ADM */
+.adm-btn{
+  position:fixed; top:max(12px,env(safe-area-inset-top)); right:12px; z-index:20;
+  width:42px;height:42px;border-radius:50%;border:1px solid var(--line);
+  background:var(--surface);display:grid;place-items:center;cursor:pointer;color:var(--muted);
+}
+.adm-btn.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.adm-btn svg{width:20px;height:20px}
+
+/* Perfil */
+.profile{text-align:center;padding:36px 0 22px}
+.avatar{
+  width:96px;height:96px;border-radius:50%;margin:0 auto 14px;background:var(--accent);
+  color:var(--accent-ink);display:grid;place-items:center;font-size:38px;font-weight:800;
+  background-size:cover;background-position:center;
+}
+.profile h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em}
+.handle{margin:2px 0 0;color:var(--muted);font-size:15px}
+.bio{margin:12px auto 0;max-width:420px;line-height:1.45;font-size:16px;white-space:pre-line}
+
+/* Barra admin */
+.admin-bar{
+  display:none;gap:8px;flex-wrap:wrap;justify-content:center;margin:0 0 18px;padding:12px;
+  border:1px dashed var(--accent);border-radius:var(--radius);background:var(--surface);
+}
+body.admin .admin-bar{display:flex}
+.admin-note{flex-basis:100%;text-align:center;font-size:13px;color:var(--muted);margin:0}
+.admin-note.dirty{color:var(--accent);font-weight:600}
+.btn{
+  border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:9px 14px;
+  cursor:pointer;font-weight:600;font-size:14px;
+}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--danger)}
+.btn.small{padding:6px 10px;font-size:13px;border-radius:10px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Cards */
+.list{display:flex;flex-direction:column;gap:12px;list-style:none;margin:0;padding:0}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.item.pinned{border-color:var(--accent);border-width:2px}
+.card{
+  display:flex;gap:14px;align-items:center;padding:12px;cursor:pointer;width:100%;
+  background:none;border:0;text-align:left;
+}
+.card:hover .title{text-decoration:underline;text-underline-offset:3px}
+.thumb{
+  flex:none;width:88px;height:88px;border-radius:12px;background:var(--bg);
+  background-size:cover;background-position:center;display:grid;place-items:center;
+  color:var(--muted);font-size:30px;font-weight:800;
+}
+.info{min-width:0;flex:1}
+.title{margin:0;font-weight:800;font-size:17px;line-height:1.2;letter-spacing:-.01em}
+.desc{
+  margin:5px 0 0;color:var(--muted);font-size:14px;line-height:1.35;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+}
+.pin-tag{
+  display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;font-size:12px;font-weight:600;
+  color:var(--accent);
+}
+.pin-tag svg{width:12px;height:12px}
+.tools{
+  display:none;gap:6px;flex-wrap:wrap;padding:8px 12px 12px;border-top:1px solid var(--line);
+}
+body.admin .tools{display:flex}
+.empty{text-align:center;color:var(--muted);padding:40px 10px;line-height:1.5}
+footer{text-align:center;color:var(--muted);font-size:13px;margin-top:34px}
+
+/* Modal */
+dialog{
+  border:0;border-radius:var(--radius);padding:0;width:min(440px,calc(100vw - 24px));
+  background:var(--surface);color:var(--ink);
+}
+dialog::backdrop{background:rgba(10,12,20,.6)}
+.modal{padding:22px;display:flex;flex-direction:column;gap:14px}
+.modal h2{margin:0;font-size:20px;letter-spacing:-.01em}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13px;font-weight:600;color:var(--muted)}
+.field input[type=text],.field input[type=url],.field textarea{
+  padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);width:100%;
+}
+.field textarea{min-height:84px;resize:vertical}
+.check{display:flex;align-items:center;gap:8px;font-size:15px}
+.preview{
+  width:100%;height:150px;border-radius:12px;border:1px dashed var(--line);background:var(--bg) center/cover;
+  display:grid;place-items:center;color:var(--muted);font-size:14px;
+}
+.row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.err{color:var(--danger);font-size:14px;margin:0;min-height:1em}
+.hint{font-size:13px;color:var(--muted);margin:0;line-height:1.4}
+@media (prefers-reduced-motion:no-preference){
+  .item{transition:transform .15s}
+  .item:hover{transform:translateY(-2px)}
+}
+</style>
+</head>
+<body>
+
+<button class="adm-btn" id="admBtn" aria-label="Área do administrador" title="Administrador">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/><circle cx="12" cy="11" r="2.2"/><path d="M12 13.2V16"/></svg>
+</button>
+
+<main class="wrap">
+  <section class="profile">
+    <div class="avatar" id="avatar"></div>
+    <h1 id="pName"></h1>
+    <p class="handle" id="pHandle"></p>
+    <p class="bio" id="pBio"></p>
+  </section>
+
+  <section class="admin-bar" id="adminBar">
+    <button class="btn primary" id="newBtn">+ Novo link</button>
+    <button class="btn" id="profileBtn">Editar perfil</button>
+    <button class="btn" id="publishBtn">Baixar links.json</button>
+    <button class="btn" id="discardBtn">Descartar rascunho</button>
+    <button class="btn danger" id="exitBtn">Sair do ADM</button>
+    <p class="admin-note" id="adminNote"></p>
+  </section>
+
+  <ul class="list" id="list"></ul>
+  <footer id="foot"></footer>
+</main>
+
+<dialog id="dlg"></dialog>
+
+<script>
+/* ====== CONFIG ====== */
+// Precisa ser IDÊNTICA à chave do gerador de tokens (gerarToken.html)
+const SECRET_KEY = "MinhaChaveSecretaCaixa2026";
+const ADMIN_ID = "adm";
+const DRAFT_KEY = "linkhub_draft_v1";
+const SESSION_KEY = "linkhub_admin_day";
+
+const DEFAULT_DATA = {
+  profile:{name:"Meu Nome",handle:"@meuperfil",bio:"As melhores ofertas selecionadas e testadas.",avatar:""},
+  links:[]
+};
+
+let data = structuredClone(DEFAULT_DATA);
+let isAdmin = false;
+let dirty = false;
+
+const $ = id => document.getElementById(id);
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+
+/* ====== TOKEN ====== */
+function validarToken(token){
+  try{
+    const txt = CryptoJS.AES.decrypt(token.trim(), SECRET_KEY).toString(CryptoJS.enc.Utf8);
+    const [data_, nome] = txt.split("|");
+    if(!txt || nome !== ADMIN_ID) return {ok:false,msg:"Token inválido."};
+    if(data_ < todayStr()) return {ok:false,msg:"Token expirado. Gere um novo com a data de hoje."};
+    return {ok:true};
+  }catch(e){ return {ok:false,msg:"Token inválido."}; }
+}
+
+/* ====== DADOS ====== */
+async function carregar(){
+  let published = null;
+  try{
+    const r = await fetch("links.json?v="+Date.now(),{cache:"no-store"});
+    if(r.ok) published = await r.json();
+  }catch(e){}
+  data = published && published.links ? published : structuredClone(DEFAULT_DATA);
+  if(isAdmin) aplicarRascunho();
+}
+function aplicarRascunho(){
+  try{
+    const d = localStorage.getItem(DRAFT_KEY);
+    if(d){ data = JSON.parse(d); dirty = true; }
+  }catch(e){}
+}
+function salvarRascunho(){
+  dirty = true;
+  try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); }
+  catch(e){ alert("Sem espaço no navegador para o rascunho. Baixe o links.json agora e use imagens menores."); }
+}
+
+/* ====== RENDER ====== */
+function ordenar(){
+  return [...data.links].sort((a,b)=> (b.pinned?1:0)-(a.pinned?1:0) || b.createdAt-a.createdAt);
+}
+function render(){
+  const p = data.profile;
+  $("pName").textContent = p.name;
+  $("pHandle").textContent = p.handle;
+  $("pBio").textContent = p.bio;
+  const av = $("avatar");
+  av.textContent = ""; av.style.backgroundImage = "";
+  if(p.avatar) av.style.backgroundImage = `url(${p.avatar})`;
+  else av.textContent = (p.name||"?").trim().charAt(0).toUpperCase();
+  document.title = p.name ? `${p.name} · Links` : "Links";
+
+  const list = $("list"); list.textContent = "";
+  const items = ordenar();
+  if(!items.length){
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = location.protocol === "file:"
+      ? "Você abriu o arquivo direto do computador (file://), e o navegador bloqueia a leitura do links.json. Abra por um servidor local: na pasta do projeto rode “python -m http.server 8000” e acesse http://localhost:8000"
+      : isAdmin ? "Nenhum link ainda. Toque em “+ Novo link” para começar." : "Em breve novos achados por aqui.";
+    list.appendChild(li);
+  }
+  items.forEach(l => list.appendChild(cardEl(l)));
+
+  $("foot").textContent = `© ${new Date().getFullYear()} ${p.name}`;
+  document.body.classList.toggle("admin", isAdmin);
+  $("admBtn").classList.toggle("on", isAdmin);
+  const note = $("adminNote");
+  note.className = "admin-note" + (dirty ? " dirty" : "");
+  note.textContent = dirty
+    ? "Há alterações não publicadas. Baixe o links.json e substitua o arquivo no seu projeto da Vercel."
+    : "Modo administrador ativo. As alterações ficam como rascunho neste navegador até você publicar.";
+  $("discardBtn").style.display = dirty ? "" : "none";
+}
+
+function cardEl(l){
+  const li = document.createElement("li");
+  li.className = "item" + (l.pinned ? " pinned" : "");
+
+  const card = document.createElement("button");
+  card.type = "button"; card.className = "card";
+  card.addEventListener("click", ()=> abrirLink(l));
+
+  const th = document.createElement("div"); th.className = "thumb";
+  if(l.image) th.style.backgroundImage = `url(${l.image})`;
+  else th.textContent = (l.title||"?").charAt(0).toUpperCase();
+
+  const info = document.createElement("div"); info.className = "info";
+  if(l.pinned){
+    const tag = document.createElement("div"); tag.className = "pin-tag";
+    tag.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2l8 8-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4z"/></svg>';
+    tag.append("Fixado");
+    info.appendChild(tag);
+  }
+  const t = document.createElement("h3"); t.className = "title"; t.textContent = l.title;
+  info.appendChild(t);
+  if(l.text){
+    const d = document.createElement("p"); d.className = "desc"; d.textContent = l.text;
+    info.appendChild(d);
+  }
+  card.append(th, info);
+  li.appendChild(card);
+
+  // Ferramentas (somente ADM)
+  const tools = document.createElement("div"); tools.className = "tools";
+  const mk = (txt, cls, fn) => {
+    const b = document.createElement("button"); b.type="button";
+    b.className = "btn small " + (cls||""); b.textContent = txt;
+    b.addEventListener("click", fn); return b;
+  };
+  tools.append(
+    mk(l.pinned ? "Desafixar" : "Fixar no topo","",()=>{ l.pinned = !l.pinned; salvarRascunho(); render(); }),
+    mk("Editar","",()=> modalLink(l)),
+    mk("Excluir","danger",()=>{
+      if(confirm(`Excluir “${l.title}”?`)){
+        data.links = data.links.filter(x=>x.id!==l.id); salvarRascunho(); render();
+      }
+    })
+  );
+  li.appendChild(tools);
+  return li;
+}
+
+function abrirLink(l){
+  let url = (l.url||"").trim();
+  if(!url) return;
+  if(!/^https?:\/\//i.test(url)) url = "https://" + url;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+/* ====== IMAGEM ====== */
+function processarImagem(file, size){
+  return new Promise((res, rej)=>{
+    const fr = new FileReader();
+    fr.onerror = rej;
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = rej;
+      img.onload = () => {
+        const c = document.createElement("canvas"); c.width = c.height = size;
+        const s = Math.min(img.width, img.height);
+        const sx = (img.width - s)/2, sy = (img.height - s)/2;
+        c.getContext("2d").drawImage(img, sx, sy, s, s, 0, 0, size, size);
+        res(c.toDataURL("image/jpeg", 0.8));
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+/* ====== MODAIS ====== */
+const dlg = $("dlg");
+function abrirModal(el){ dlg.textContent = ""; dlg.appendChild(el); if(!dlg.open) dlg.showModal(); }
+function fecharModal(){ if(dlg.open) dlg.close(); }
+dlg.addEventListener("click", e => { if(e.target === dlg) fecharModal(); });
+
+function campo(label, input){
+  const w = document.createElement("div"); w.className = "field";
+  const lb = document.createElement("label"); lb.textContent = label;
+  w.append(lb, input); return w;
+}
+function inputEl(type, value, ph){
+  const i = document.createElement("input"); i.type = type; i.value = value||""; if(ph) i.placeholder = ph;
+  i.autocomplete = "off"; return i;
+}
+function botoes(...bs){ const r = document.createElement("div"); r.className = "row"; r.append(...bs); return r; }
+function btn(txt, cls, fn){
+  const b = document.createElement("button"); b.type = "button"; b.className = "btn " + (cls||"");
+  b.textContent = txt; b.addEventListener("click", fn); return b;
+}
+
+function modalToken(){
+  const m = document.createElement("div"); m.className = "modal";
+  const h = document.createElement("h2"); h.textContent = "Acesso do administrador";
+  const p = document.createElement("p"); p.className = "hint";
+  p.textContent = "Cole o token gerado hoje para o identificador “adm”.";
+  const ta = document.createElement("textarea"); ta.placeholder = "Token";
+  const err = document.createElement("p"); err.className = "err";
+  const entrar = () => {
+    const r = validarToken(ta.value);
+    if(!r.ok){ err.textContent = r.msg; return; }
+    sessionStorage.setItem(SESSION_KEY, todayStr());
+    isAdmin = true; aplicarRascunho(); fecharModal(); render();
+  };
+  m.append(h, p, campo("Token", ta), err, botoes(btn("Cancelar","",fecharModal), btn("Entrar","primary",entrar)));
+  abrirModal(m); ta.focus();
+}
+
+function modalLink(l){
+  const novo = !l;
+  const cur = l ? {...l} : {title:"",text:"",url:"",image:"",pinned:false};
+  const m = document.createElement("div"); m.className = "modal";
+  const h = document.createElement("h2"); h.textContent = novo ? "Novo link" : "Editar link";
+
+  const title = inputEl("text", cur.title, "Ex: Lanterna recarregável");
+  const text = document.createElement("textarea"); text.value = cur.text; text.placeholder = "Descrição curta do produto";
+  const url = inputEl("url", cur.url, "https://mercadolivre.com/...");
+  const prev = document.createElement("div"); prev.className = "preview";
+  const setPrev = () => { prev.style.backgroundImage = cur.image ? `url(${cur.image})` : ""; prev.textContent = cur.image ? "" : "Sem imagem"; };
+  setPrev();
+  const file = document.createElement("input"); file.type = "file"; file.accept = "image/*";
+  file.addEventListener("change", async () => {
+    if(!file.files[0]) return;
+    try{ cur.image = await processarImagem(file.files[0], 400); setPrev(); }
+    catch(e){ err.textContent = "Não foi possível ler essa imagem."; }
+  });
+  const rm = btn("Remover imagem","small",()=>{ cur.image = ""; file.value = ""; setPrev(); });
+
+  const chk = document.createElement("label"); chk.className = "check";
+  const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = cur.pinned;
+  chk.append(cb, "Fixar no topo da página");
+
+  const err = document.createElement("p"); err.className = "err";
+  const salvar = () => {
+    if(!title.value.trim()){ err.textContent = "Digite um título."; return; }
+    if(!url.value.trim()){ err.textContent = "Cole o link do produto."; return; }
+    const obj = { ...cur, title:title.value.trim(), text:text.value.trim(), url:url.value.trim(), pinned:cb.checked };
+    if(novo){ obj.id = uid(); obj.createdAt = Date.now(); data.links.push(obj); }
+    else { const i = data.links.findIndex(x=>x.id===l.id); data.links[i] = { ...l, ...obj }; }
+    salvarRascunho(); fecharModal(); render();
+  };
+  m.append(h, campo("Título", title), campo("Texto", text), campo("Link (fica oculto)", url),
+           campo("Imagem", prev), file, rm, chk, err,
+           botoes(btn("Cancelar","",fecharModal), btn("Salvar","primary",salvar)));
+  abrirModal(m);
+}
+
+function modalPerfil(){
+  const p = {...data.profile};
+  const m = document.createElement("div"); m.className = "modal";
+  const h = document.createElement("h2"); h.textContent = "Editar perfil";
+  const name = inputEl("text", p.name);
+  const handle = inputEl("text", p.handle);
+  const bio = document.createElement("textarea"); bio.value = p.bio;
+  const prev = document.createElement("div"); prev.className = "preview";
+  const setPrev = () => { prev.style.backgroundImage = p.avatar ? `url(${p.avatar})` : ""; prev.textContent = p.avatar ? "" : "Sem foto"; };
+  setPrev();
+  const file = document.createElement("input"); file.type = "file"; file.accept = "image/*";
+  file.addEventListener("change", async () => {
+    if(file.files[0]){ try{ p.avatar = await processarImagem(file.files[0], 300); setPrev(); }catch(e){} }
+  });
+  const salvar = () => {
+    data.profile = { name:name.value.trim()||"Meu Nome", handle:handle.value.trim(), bio:bio.value.trim(), avatar:p.avatar };
+    salvarRascunho(); fecharModal(); render();
+  };
+  m.append(h, campo("Nome", name), campo("Usuário", handle), campo("Bio", bio), campo("Foto", prev), file,
+           botoes(btn("Cancelar","",fecharModal), btn("Salvar","primary",salvar)));
+  abrirModal(m);
+}
+
+/* ====== AÇÕES ====== */
+$("admBtn").addEventListener("click", ()=>{
+  if(isAdmin){ document.getElementById("adminBar").scrollIntoView({behavior:"smooth",block:"center"}); return; }
+  modalToken();
+});
+$("newBtn").addEventListener("click", ()=> modalLink(null));
+$("profileBtn").addEventListener("click", modalPerfil);
+$("exitBtn").addEventListener("click", async ()=>{
+  sessionStorage.removeItem(SESSION_KEY); isAdmin = false; dirty = false;
+  await carregar(); render();
+});
+$("discardBtn").addEventListener("click", async ()=>{
+  if(!confirm("Descartar as alterações não publicadas?")) return;
+  localStorage.removeItem(DRAFT_KEY); dirty = false;
+  const keep = isAdmin; isAdmin = false; await carregar(); isAdmin = keep; render();
+});
+$("publishBtn").addEventListener("click", ()=>{
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "links.json"; a.click();
+  URL.revokeObjectURL(a.href);
+  alert("links.json baixado!\n\nSubstitua o arquivo links.json do seu projeto na Vercel por este e faça o deploy novamente. Depois disso, as mudanças aparecem para todos os visitantes.");
+});
+
+/* ====== INÍCIO ====== */
+(async function(){
+  isAdmin = sessionStorage.getItem(SESSION_KEY) === todayStr();
+  await carregar();
+  render();
+})();
+</script>
+</body>
+</html>
